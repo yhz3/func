@@ -38,7 +38,7 @@ spec:
       name: builderImage
       type: string
     - description: Environment variables to set during build time
-      name: buildEnvs
+      name: envs
       type: array
   tasks:
     {{.GitCloneTaskRef}}
@@ -54,7 +54,7 @@ spec:
           value: $(params.builderImage)
         - name: ENV_VARS
           value:
-            - '$(params.buildEnvs[*])'
+            - '$(params.envs[*])'
       {{.RunAfterFetchSources}}
       {{.FuncBuildpacksTaskRef}}
       workspaces:
@@ -116,7 +116,7 @@ spec:
       value: {{.Registry}}
     - name: builderImage
       value: {{.BuilderImage}}
-    - name: buildEnvs
+    - name: envs
       value:
         {{range .BuildEnvs -}}
            - {{.}}
@@ -188,7 +188,7 @@ spec:
       value: {{.Registry}}
     - name: builderImage
       value: {{.BuilderImage}}
-    - name: buildEnvs
+    - name: envs
       value:
         {{range .BuildEnvs -}}
            - {{.}}

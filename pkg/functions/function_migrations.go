@@ -410,3 +410,33 @@ type migrateFromInvokeStructure_invocation struct {
 type migrateFromInvokeStructure_previousFunction struct {
 	Invocation migrateFromInvokeStructure_invocation `yaml:"invocation,omitempty"`
 }
+
+func migrateToEnvs(fn Function, m migration) (Function, error) {
+	f, err := os.Open(filepath.Join(fn.Root, FunctionFile))
+	if err != nil {
+		return Function{}, fmt.Errorf("cannot open func.yaml: %w", err)
+	}
+	defer f.Close()
+
+	data := struct {
+		Build struct {
+			BuildEnvs []struct {
+				BuildEnvs *envs `yaml:"buildEnvs"`
+			} `yaml:"envs,omitempty"`
+		}
+	}{}
+
+	dec := yaml.NewDecoder(f)
+	err = dec.Decode(&data)
+	if err != nil {
+		return Function{}, fmt.Errorf("cannot deserialize old sub-structure: %w", err)
+	}
+
+	for idx, envs := range data.Build.BuildEnvs {
+		if envs != nil {
+			fn.Build.BuildEnvs[idx] = envs
+		}
+	}
+	fn.SpecVersion = m.version
+	return fn, nil
+}
