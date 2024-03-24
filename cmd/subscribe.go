@@ -38,6 +38,8 @@ and an 'extension' attribute for the value 'my-extension-value'.
 
 	cmd.Flags().StringP("source", "s", "default", "The source, like a Knative Broker")
 
+	addPathFlag(cmd)
+
 	return cmd
 }
 
@@ -48,7 +50,7 @@ func runSubscribe(cmd *cobra.Command, args []string) (err error) {
 	)
 	cfg = newSubscribeConfig(cmd)
 
-	if f, err = fn.NewFunction(""); err != nil {
+	if f, err = fn.NewFunction(effectivePath()); err != nil {
 		return
 	}
 	if !f.Initialized() {
@@ -59,19 +61,15 @@ func runSubscribe(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	// add subscription	to function
-	f.Deploy.Subscriptions = append(f.Deploy.Subscriptions, fn.KnativeSubscription{
-		Source:  cfg.Source,
-		Filters: extractFilterMap(cfg),
-	})
+	f.Deploy.Subscriptions = updateOrAddSubscription(f.Deploy.Subscriptions, cfg)
 
 	// pump it
 	return f.Write()
-
 }
 
-func extractFilterMap(cfg subscibeConfig) map[string]string {
+func extractFilterMap(filters []string) map[string]string {
 	subscriptionFilters := make(map[string]string)
-	for _, filter := range cfg.Filter {
+	for _, filter := range filters {
 		kv := strings.Split(filter, "=")
 		if len(kv) != 2 {
 			fmt.Println("Invalid pair:", filter)
@@ -87,6 +85,33 @@ func extractFilterMap(cfg subscibeConfig) map[string]string {
 type subscibeConfig struct {
 	Filter []string
 	Source string
+}
+
+func updateOrAddSubscription(subscriptions []fn.KnativeSubscription, cfg subscibeConfig) []fn.KnativeSubscription {
+	found := false
+	newFilters := extractFilterMap(cfg.Filter)
+
+	// Iterate over subscriptions to find if one with the same source already exists
+	for i, subscription := range subscriptions {
+		if subscription.Source == cfg.Source {
+			found = true
+			// Update filters. Override if the key already exists.
+			for newKey, newValue := range newFilters {
+				subscription.Filters[newKey] = newValue
+			}
+			subscriptions[i] = subscription // Reassign the updated subscription
+			break
+		}
+	}
+
+	// If a subscription with the source was not found, add a new one
+	if !found {
+		subscriptions = append(subscriptions, fn.KnativeSubscription{
+			Source:  cfg.Source,
+			Filters: newFilters,
+		})
+	}
+	return subscriptions
 }
 
 func newSubscribeConfig(cmd *cobra.Command) (c subscibeConfig) {

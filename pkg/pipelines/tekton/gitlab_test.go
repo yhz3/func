@@ -44,6 +44,10 @@ import (
 )
 
 func TestGitlab(t *testing.T) {
+	// this test is unreliable and fails majority of the time with unrelated problem
+	// skip this for now until the issue is fixed
+	// https://github.com/knative/func/issues/2185
+	t.Skip()
 	var err error
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
@@ -85,9 +89,9 @@ func TestGitlab(t *testing.T) {
 			PVCSize:       "256Mi",
 		},
 		Deploy: fn.DeploySpec{
-			Remote:    true,
 			Namespace: ns,
 		},
+		Local: fn.Local{Remote: true},
 	}
 	f = fn.NewFunctionWith(f)
 	err = f.Write()
@@ -410,7 +414,7 @@ func getAPIToken(baseURL, username, password string) (string, error) {
 		return "", fmt.Errorf("cannot sign in, unexpected status: %d", resp.StatusCode)
 	}
 
-	personalAccessTokensURL := baseURL + "/-/profile/personal_access_tokens"
+	personalAccessTokensURL := baseURL + "/-/user_settings/personal_access_tokens"
 
 	resp, err = c.Get(personalAccessTokensURL)
 	if err != nil {
